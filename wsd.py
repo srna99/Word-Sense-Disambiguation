@@ -158,6 +158,12 @@ for feature_type, feature_list in feature_sense_dict.items():
 
 ranked_tests.sort(key=lambda x: x[0], reverse=True)
 
+with open(model, 'w', encoding="utf-8-sig") as file:
+    for data in ranked_tests:
+        line = "feature type = " + data[1] + ", feature = " + data[2] + ", log-likelihood score = " + str(
+                data[0]) + ", sense = " + data[3] + "\n"
+        file.write(line)
+
 for instance in test_content:
     instance_id = re.search(r'instance id=\"(.*)\"', instance).group(1)
 
@@ -206,12 +212,9 @@ for instance in test_content:
             sense = sense_phone
         else:
             sense = sense_product
-# <answer instance="line-n.w7_041:11151:" senseid="product"/>
 
+    answer = "<answer instance=\"" + instance_id + "\" senseid=\"" + sense + "\"/>"
+    answers.append(answer)
 
-
-
-
-
-
-
+for answer in answers:
+    print(answer)
