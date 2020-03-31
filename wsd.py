@@ -38,15 +38,18 @@ w_window_10 = "k=10"
 feature_sense_dict = {w_plus_1: {}, w_minus_1: {}, w_pair_minus_2: {}, w_pair_plus_2: {},
                       w_pair_minus_plus_1: {}, w_window_3: {}, w_window_5: {}, w_window_10: {}}
 feature_frequency_dict = {}
+sense_frequency_dict = {sense_phone: 0, sense_product: 0}
+
 ranked_tests = []
+answers = []
 
 
 def clean_context(content):
     content = re.sub(r'(<.>|<\/.>|\.|,|;|!|-|&|\)|\(|\"|\?)', ' ', content)
     content = re.sub(r'\s+', ' ', content)
-    # content = re.sub(r'\s(of|a|the|is|was|in|an|are|at|but)\s', ' ', content)
+    # content = re.sub(r'\s(of|a|the|is|was|in|an|are|at|but|you)\s', ' ', content)
     # content = re.sub(r'\s+', ' ', content)
-    content = re.sub("lines", "line", content)
+    content = re.sub(">lines<", ">line<", content)
     return content.split()
 
 
@@ -68,11 +71,32 @@ def add_with_window_size(context_list, w_feature, k, target_ind, add_frequencies
             increment_feature_frequency(context_list[ind])
 
 
-def increment_feature_frequency(feature):
-    if feature in feature_frequency_dict.keys():
-        feature_frequency_dict[feature] += 1
+def increment_feature_frequency(feature_term):
+    if feature_term in feature_frequency_dict.keys():
+        feature_frequency_dict[feature_term] += 1
     else:
-        feature_frequency_dict[feature] = 1
+        feature_frequency_dict[feature_term] = 1
+
+
+def create_test(test_number, feature_term, is_list):
+    test_feature = ranked_tests[test_number]
+
+    if is_list and test_feature[2] in feature_term:
+        return True
+    elif not is_list and feature_term == test_feature[2]:
+        return True
+
+    return False
+
+
+def create_test_feature_list(context_list, k, target_ind):
+    features_list = []
+    for i in range(target_ind - k, target_ind + k):
+        if i < 0 or i >= len(context_list) or i == target_ind:
+            continue
+        features_list.append(context_list[i])
+
+    return features_list
 
 
 with open(train_set, 'r', encoding="utf-8-sig") as file:
@@ -84,9 +108,10 @@ with open(test_set, 'r', encoding="utf-8-sig") as file:
     test_content.pop()
 
 for instance in train_content:
-    sense = instance[instance.find("senseid=") + 9: instance.find("\"/>")]
+    sense = re.search(r'senseid=\"(.*)\"', instance).group(1)
+    sense_frequency_dict[sense] += 1
 
-    context = instance[instance.find("<context>") + 9: instance.find("</context>")]
+    context = re.search(r'<context>\n(.*)\n</context>', instance).group(1)
     context_words = clean_context(context)
 
     target = context_words.index("<head>line</head>")
@@ -132,7 +157,58 @@ for feature_type, feature_list in feature_sense_dict.items():
         ranked_tests.append(test)
 
 ranked_tests.sort(key=lambda x: x[0], reverse=True)
-print(ranked_tests[0])
+
+for instance in test_content:
+    instance_id = re.search(r'instance id=\"(.*)\"', instance).group(1)
+
+    context = re.search(r'<context>\n(.*)\n</context>', instance).group(1)
+    context_words = clean_context(context)
+
+    target = context_words.index("<head>line</head>")
+
+    sense = ""
+    for ind, test in enumerate(ranked_tests):
+        if test[1] == w_plus_1 and target + 1 < len(context_words):
+            if create_test(ind, context_words[target + 1], False):
+                sense = test[3]
+                break
+        elif test[1] == w_minus_1 and target - 1 >= 0:
+            if create_test(ind, context_words[target - 1], False):
+                sense = test[3]
+                break
+        elif test[1] == w_pair_minus_2 and target - 2 >= 0:
+            if create_test(ind, context_words[target - 2] + " " + context_words[target - 1], False):
+                sense = test[3]
+                break
+        elif test[1] == w_pair_plus_2 and target + 2 < len(context_words):
+            if create_test(ind, context_words[target + 1] + " " + context_words[target + 2], False):
+                sense = test[3]
+                break
+        elif test[1] == w_pair_minus_plus_1 and target - 1 >= 0 and target + 1 < len(context_words):
+            if create_test(ind, context_words[target - 1] + " " + context_words[target + 1], False):
+                sense = test[3]
+                break
+        elif test[1] == w_window_3:
+            if create_test(ind, create_test_feature_list(context_words, 3, target), True):
+                sense = test[3]
+                break
+        elif test[1] == w_window_5:
+            if create_test(ind, create_test_feature_list(context_words, 5, target), True):
+                sense = test[3]
+                break
+        elif test[1] == w_window_10:
+            if create_test(ind, create_test_feature_list(context_words, 10, target), True):
+                sense = test[3]
+                break
+
+    if sense == "":
+        if sense_frequency_dict[sense_phone] >= sense_frequency_dict[sense_product]:
+            sense = sense_phone
+        else:
+            sense = sense_product
+# <answer instance="line-n.w7_041:11151:" senseid="product"/>
+
+
 
 
 
