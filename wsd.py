@@ -63,9 +63,7 @@ for instance in train_content:
 
     if target + 1 < len(context_words):
         feature_word = context_words[target + 1]
-        print(feature_word)
         if feature_word not in frequency_dict[w_plus_1].keys():
-            frequency_dict[w_plus_1] = {feature_word: {}}
             frequency_dict[w_plus_1][feature_word] = {sense_phone: 0,
                                                       sense_product: 0}
         frequency_dict[w_plus_1][feature_word][sense] += 1
