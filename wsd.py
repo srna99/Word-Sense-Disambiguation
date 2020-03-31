@@ -14,6 +14,7 @@ Algorithm:
 
 import sys
 import re
+import math
 
 train_set = sys.argv[1]
 test_set = sys.argv[2]
@@ -37,28 +38,31 @@ w_window_10 = "k=10"
 feature_sense_dict = {w_plus_1: {}, w_minus_1: {}, w_pair_minus_2: {}, w_pair_plus_2: {},
                       w_pair_minus_plus_1: {}, w_window_3: {}, w_window_5: {}, w_window_10: {}}
 feature_frequency_dict = {}
+ranked_tests = []
 
 
 def clean_context(content):
-    content = re.sub(r'(<.>|<\/.>|\.|,|;|!|-|\")', ' ', content)
+    content = re.sub(r'(<.>|<\/.>|\.|,|;|!|-|&|\)|\(|\"|\?)', ' ', content)
     content = re.sub(r'\s+', ' ', content)
+    # content = re.sub(r'\s(of|a|the|is|was|in|an|are|at|but)\s', ' ', content)
+    # content = re.sub(r'\s+', ' ', content)
     content = re.sub("lines", "line", content)
     return content.split()
 
 
-def add_to_feature_sense_dict(feature_type, feature_word):
-    if feature_word not in feature_sense_dict[feature_type].keys():
-        feature_sense_dict[feature_type][feature_word] = {sense_phone: 0, sense_product: 0}
+def add_to_feature_sense_dict(w_feature, feature_word):
+    if feature_word not in feature_sense_dict[w_feature].keys():
+        feature_sense_dict[w_feature][feature_word] = {sense_phone: 1, sense_product: 1}
 
-    feature_sense_dict[feature_type][feature_word][sense] += 1
+    feature_sense_dict[w_feature][feature_word][sense] += 1
 
 
-def add_with_window_size(context_list, feature_type, k, target_ind, add_frequencies):
+def add_with_window_size(context_list, w_feature, k, target_ind, add_frequencies):
     for ind in range(target_ind - k, target_ind + k):
         if ind < 0 or ind >= len(context_list) or ind == target_ind:
             continue
 
-        add_to_feature_sense_dict(feature_type, context_list[ind])
+        add_to_feature_sense_dict(w_feature, context_list[ind])
 
         if add_frequencies:
             increment_feature_frequency(context_list[ind])
@@ -112,7 +116,24 @@ for instance in train_content:
     add_with_window_size(context_words, w_window_5, 5, target, False)
     add_with_window_size(context_words, w_window_10, 10, target, True)
 
-print(feature_frequency_dict)
+for feature_type, feature_list in feature_sense_dict.items():
+    for feature, frequency in feature_list.items():
+        prob_phone = frequency[sense_phone] / feature_frequency_dict[feature]
+        prob_product = frequency[sense_product] / feature_frequency_dict[feature]
+
+        if prob_phone >= prob_product:
+            sense = sense_phone
+        else:
+            sense = sense_product
+
+        log_likelihood_ratio = round(abs(math.log(prob_phone / prob_product)), 5)
+
+        test = (log_likelihood_ratio, feature_type, feature, sense)
+        ranked_tests.append(test)
+
+ranked_tests.sort(key=lambda x: x[0], reverse=True)
+print(ranked_tests[0])
+
 
 
 
