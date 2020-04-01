@@ -14,9 +14,10 @@ Ex. python3 wsd.py line-train.txt line-test.txt my-model.txt > my-line-answers.t
 Algorithm:
 This model is based on Yarowsky's decision list. Unigrams and bi-grams surrounding the target word are
 collected as features and their position relative to the target word is noted. Features used includes w+1,
-w-1, w-2 & w-1, w+1 & w+2, and several more. Tests based on the features were created and ranked based on
-their log-likelihood score (abs(log( (P(sense_1|feature)/(P(sense_2|feature) ))). The tests are then applied
-to the test data in ranked order, where the first test to pass results in the associated sense.
+w-1, w-2 & w-1, w+1 & w+2, and several more. Smoothing was applied, where each feature's sense frequency
+was increased by 1. Tests based on the features were created and ranked based on their log-likelihood score
+(abs(log( (P(sense_1|feature)/(P(sense_2|feature) ))). The tests are then applied to the test data in
+ranked order, where the first test to pass results in the associated sense.
 Baseline Accuracy (phone): 0.51
 Overall Accuracy: 0.9
 
