@@ -23,90 +23,84 @@ total number of tags.
 """
 
 import sys
+import re
 
-test_with_tags = sys.argv[1]  # tagged test set file
-test_key = sys.argv[2]  # test key file
+line_answers = sys.argv[1]  # tagged test set file
+line_key = sys.argv[2]  # test key file
 
-test_tagged_content = []  # test broken apart
-test_key_content = []  # key broken apart
+answer_content = []  # test broken apart
+key_content = []  # key broken apart
 
-tags_test = []  # tags from test
-tags_key = []  # tags from key
+answers = []
+key = []
+
+senses = {"phone": 0, "product": 1}
 
 
 # split tags from words and add to respective tag arrays
-def separate_tags(array, sep_array):
-    for term in array:
-        # skip brackets
-        if term == '[' or term == ']':
-            continue
-
-        # separate words from tags
-        parts = term.rsplit('/', 1)
-        pos = parts[1].split('|')[0]
-        sep_array.append(pos)
+def get_senses(answer_list, instance_sense_dict):
+    for ans in answer_list:
+        sense = re.search(r'senseid=\"(.*)\"', ans).group(1)
+        instance_sense_dict.append(sense)
 
 
 # tokenize tagged test
-with open(test_with_tags, 'r', encoding="utf-8-sig") as file:
-    test_tagged_content.extend(file.read().split())
+with open(line_answers, 'r', encoding="utf-8-sig") as file:
+    answer_content.extend(file.read().split("\n"))
+    answer_content.pop()
 
 # tokenize key
-with open(test_key, 'r', encoding="utf-8-sig") as file:
-    test_key_content.extend(file.read().split())
+with open(line_key, 'r', encoding="utf-8-sig") as file:
+    key_content.extend(file.read().split("\n"))
+    key_content.pop()
 
 # get only tags
-separate_tags(test_tagged_content, tags_test)
-separate_tags(test_key_content, tags_key)
+get_senses(answer_content, answers)
+get_senses(key_content, key)
 
-all_tags = set(tags_key)  # get unique tags
-tag_dict = dict(zip(all_tags, range(len(all_tags))))  # associate tag with num
+# # create matrix filled with 0s that is sized (num of tags x num of tags)
+confusion_matrix = [[0] * len(senses) for _ in range(len(senses))]
 
-# create matrix filled with 0s that is sized (num of tags x num of tags)
-confusion_matrix = [[0] * len(all_tags) for _ in range(len(all_tags))]
-
-most_tag = ''  # most frequent tag
+most_sense = ''  # most frequent tag
 most_count = 0  # correct count of frequent tag
 total_correct = 0  # total correct count of all tags
-for i in range(len(tags_key)):
-    actual_tag = tags_key[i]  # actual
-    predicted_tag = tags_test[i]  # predicted
+for ind in range(len(key)):
+    actual_sense = key[ind]  # actual
+    predicted_sense = answers[ind]  # predicted
 
     # increment on matrix
-    confusion_matrix[tag_dict[actual_tag]][tag_dict[predicted_tag]] += 1
+    confusion_matrix[senses[actual_sense]][senses[predicted_sense]] += 1
 
-    if actual_tag == predicted_tag:
+    if actual_sense == predicted_sense:
         # update if tag count is higher than current highest count
-        if confusion_matrix[tag_dict[actual_tag]][tag_dict[predicted_tag]] > \
-                most_count:
-            most_tag = actual_tag
-            most_count = confusion_matrix[tag_dict[actual_tag]][tag_dict[
-                predicted_tag]]
+        if confusion_matrix[senses[actual_sense]][senses[predicted_sense]] > most_count:
+            most_sense = actual_sense
+            most_count = confusion_matrix[senses[actual_sense]][senses[predicted_sense]]
 
         # increment total correct count if tag is correct
         total_correct += 1
 
 # BA = (num of correct tags if all are most frequent tag)/total num of tags
-baseline_accuracy = round(most_count / len(tags_key), 2)
+baseline_accuracy = round(most_count / len(key), 2)
 # A = num of correct tags/total num of tags
-accuracy = round(total_correct / len(tags_key), 2)
+accuracy = round(total_correct / len(key), 2)
 
 print("Baseline Accuracy:", baseline_accuracy)
 print("Overall Accuracy:", accuracy)
 
-ordered_tags = [''] * len(all_tags)
+ordered_tags = [''] * len(senses)
 # put tags in order
-for tag, num in tag_dict.items():
+for tag, num in senses.items():
     ordered_tags[num] = tag
 
 # print all tags horizontally
-for i in range(len(ordered_tags)):
-    if i == 0:
-        print("\n     ", end='')
-    print(format(ordered_tags[i], '>4'), end=' ')
+for ind in range(len(ordered_tags)):
+    if ind == 0:
+        print("\n        ", end='')
+    print(format(ordered_tags[ind], '>4'), end=' ')
 
 # print all tags and counts in matrix
-for i in range(len(all_tags)):
-    print("\n", format(ordered_tags[i], '4'), end='')
-    for j in range(len(all_tags)):
-        print(format(confusion_matrix[i][j], '4'), end=' ')
+for ind in range(len(senses)):
+    print("\n", format(ordered_tags[ind], '7'), end='')
+    for j in range(len(senses)):
+        print(format(confusion_matrix[ind][j], '5'), end=' ')
